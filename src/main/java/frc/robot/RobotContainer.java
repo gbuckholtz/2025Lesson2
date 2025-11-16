@@ -16,10 +16,8 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 /**
- * This class is where the bulk of the robot should be declared. Since Command-based is a
- * "declarative" paradigm, very little robot logic should actually be handled in the {@link Robot}
- * periodic methods (other than the scheduler calls). Instead, the structure of the robot (including
- * subsystems, commands, and trigger mappings) should be declared here.
+ * This class pulls together the main parts of the robot program.
+ * It builds the subsystems, controller, and commands so you can see how they connect.
  */
 public class RobotContainer {
   // The robot's subsystems and commands are defined here...
@@ -38,29 +36,25 @@ public class RobotContainer {
   }
 
   /**
-   * Use this method to define your trigger->command mappings. Triggers can be created via the
-   * {@link Trigger#Trigger(java.util.function.BooleanSupplier)} constructor with an arbitrary
-   * predicate, or via the named factories in {@link
-   * edu.wpi.first.wpilibj2.command.button.CommandGenericHID}'s subclasses for {@link
-   * CommandXboxController Xbox}/{@link edu.wpi.first.wpilibj2.command.button.CommandPS4Controller
-   * PS4} controllers or {@link edu.wpi.first.wpilibj2.command.button.CommandJoystick Flight
-   * joysticks}.
+   * Match controller actions to commands.
+   * A trigger checks something that can be true or false, like a button press.
+   * When a trigger becomes true, the linked command starts running.
    */
   private void configureBindings() {
     m_swerveModule.setDefaultCommand(
         new RunCommand(() -> m_swerveModule.drive(m_driverController.getLeftY()), m_swerveModule));
 
-    // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
+    // When exampleCondition becomes true, run ExampleCommand once.
     new Trigger(m_exampleSubsystem::exampleCondition)
         .onTrue(new ExampleCommand(m_exampleSubsystem));
 
-    // Schedule `exampleMethodCommand` when the Xbox controller's B button is pressed,
-    // cancelling on release.
+    // Hold the B button to rotate the motor; release it to stop.
     m_driverController.b().whileTrue(m_rotateMotorCommand);
   }
 
   /**
-   * Use this to pass the autonomous command to the main {@link Robot} class.
+   * Give back the command that runs during the autonomous period.
+   * Right now this sends out a simple example command.
    *
    * @return the command to run in autonomous
    */

@@ -12,13 +12,16 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
+/**
+ * Subsystem for one swerve wheel. It controls the drive motor and the steering motor.
+ */
 public class SwerveModule extends SubsystemBase {
 
   
   TalonFX driveMotor = new TalonFX(7);
   TalonFX steerMotor = new TalonFX(8);
 
-  /** Creates a new SwerveModule. */
+  /** Set up the motors and their sensors. */
   public SwerveModule() {
     
     
@@ -32,13 +35,15 @@ public class SwerveModule extends SubsystemBase {
   }
 
   /**
-   * 
-   * @param speed Speed from -1 to 1
+   * Drive the wheel forward or backward with a value from -1 (full reverse) to 1 (full forward).
    */
   public void drive(double speed){
     driveMotor.set(speed);
   }
 
+  /**
+   * Turn the wheel by sending a position request to the steering motor.
+   */
   public void  rotate(double angle)
   {
        steerMotor.set(angle);
@@ -49,6 +54,7 @@ public class SwerveModule extends SubsystemBase {
 
   @Override
   public void periodic() {
+    // Show the steering position on the SmartDashboard to help with debugging.
     SmartDashboard.putNumber("Swerve/Angle", getRotations());
   }
 

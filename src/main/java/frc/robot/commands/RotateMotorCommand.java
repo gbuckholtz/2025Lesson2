@@ -8,7 +8,9 @@ package frc.robot.commands;
 import frc.robot.subsystems.SwerveModule;
 import edu.wpi.first.wpilibj2.command.Command;
 
-/** An example command that uses an example subsystem. */
+/**
+ * Command that keeps the steering motor turning while it is scheduled.
+ */
 public class RotateMotorCommand extends Command {
   
   SwerveModule m_SwerveModule;
@@ -30,6 +32,7 @@ public class RotateMotorCommand extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
+    // Spin the steering motor slowly in the positive direction.
     m_SwerveModule.rotate(.1);
   }
 
