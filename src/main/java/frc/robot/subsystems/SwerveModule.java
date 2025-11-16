@@ -42,6 +42,13 @@ public class SwerveModule extends SubsystemBase {
   }
 
   /**
+   * Rotate the steering motor at a given speed from -1 (full reverse) to 1 (full forward).
+   */
+  public void steer(double speed) {
+    steerMotor.set(speed);
+  }
+
+  /**
    * Turn the wheel by sending a position request to the steering motor.
    */
     // Removed rotate(angle) method; steering rotation command no longer used.

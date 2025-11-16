@@ -60,5 +60,10 @@ public class RobotContainer {
 
     // When X button is pressed, spin the wheel 10 rotations.
     m_driverController.x().onTrue(new SpinWheelCommand(m_swerveModule));
+
+    // While Y button is held, rotate the steering wheel at slow speed.
+    m_driverController.y()
+        .whileTrue(new RunCommand(() -> m_swerveModule.steer(0.1), m_swerveModule))
+        .onFalse(new RunCommand(() -> m_swerveModule.steer(0), m_swerveModule).withTimeout(0.02));
   }
 }
