@@ -36,6 +36,17 @@ public class RobotContainer {
   }
 
   /**
+   * Give back the command that runs during the autonomous period.
+   * Right now this sends out a simple example command.
+   *
+   * @return the command to run in autonomous
+   */
+  public Command getAutonomousCommand() {
+    // An example command will be run in autonomous
+    return Autos.exampleAuto(m_exampleSubsystem);
+  }
+
+  /**
    * Match controller actions to commands.
    * A trigger checks something that can be true or false, like a button press.
    * When a trigger becomes true, the linked command starts running.
@@ -50,16 +61,5 @@ public class RobotContainer {
 
     // Hold the B button to rotate the motor; release it to stop.
     m_driverController.b().whileTrue(m_rotateMotorCommand);
-  }
-
-  /**
-   * Give back the command that runs during the autonomous period.
-   * Right now this sends out a simple example command.
-   *
-   * @return the command to run in autonomous
-   */
-  public Command getAutonomousCommand() {
-    // An example command will be run in autonomous
-    return Autos.exampleAuto(m_exampleSubsystem);
   }
 }
