@@ -7,6 +7,7 @@ package frc.robot;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.Autos;
 import frc.robot.commands.ExampleCommand;
+import frc.robot.commands.RotateSteeringCommand;
 import frc.robot.commands.SpinWheelCommand;
 import frc.robot.subsystems.ExampleSubsystem;
 import frc.robot.subsystems.SwerveModule;
@@ -62,8 +63,6 @@ public class RobotContainer {
     m_driverController.x().onTrue(new SpinWheelCommand(m_swerveModule));
 
     // While Y button is held, rotate the steering wheel at slow speed.
-    m_driverController.y()
-        .whileTrue(new RunCommand(() -> m_swerveModule.steer(0.1), m_swerveModule))
-        .onFalse(new RunCommand(() -> m_swerveModule.steer(0), m_swerveModule).withTimeout(0.02));
+    m_driverController.y().whileTrue(new RotateSteeringCommand(m_swerveModule));
   }
 }
