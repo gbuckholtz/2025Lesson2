@@ -44,10 +44,7 @@ public class SwerveModule extends SubsystemBase {
   /**
    * Turn the wheel by sending a position request to the steering motor.
    */
-  public void  rotate(double angle)
-  {
-       steerMotor.set(angle);
-  }
+    // Removed rotate(angle) method; steering rotation command no longer used.
 
   public void setHeading(double rotation) {
   }
