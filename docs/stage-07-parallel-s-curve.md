@@ -1,54 +1,50 @@
-# Stage 07 - Parallel Commands for S-Curve Motion
+# Stage 07 - S-Curve Motion with Combined Drive and Turn
 Date: 2025-11-16
 
 ## Summary
-Refactored `GoToGoalCommand` to execute drive and steering commands simultaneously using `ParallelDeadlineGroup`, creating smooth S-curve motion instead of discrete drive-then-turn segments.
+Created `DriveAndTurnCommand` to control both drive and steering motors simultaneously within a single command, enabling smooth S-curve motion. Refactored `GoToGoalCommand` to use this combined command instead of parallel command groups.
 
 ## New Capability / Rationale
 - **Functional Addition**: Simultaneous drive and steering for arc/curve motion
-- **Motivation**: Demonstrates parallel command execution patterns and shows how to create more natural, flowing robot motion. In real swerve drive systems, wheels can drive and steer simultaneously to create curved paths. This pattern is essential for smooth autonomous navigation, path following, and advanced maneuvers like arcade-style driving curves.
+- **Motivation**: Demonstrates how to coordinate multiple motors within a single command to create natural, flowing robot motion. Initially attempted using `ParallelDeadlineGroup`, but discovered WPILib's fundamental rule: **multiple commands in a parallel group cannot require the same subsystem**. This stage shows the correct pattern: combine motor control within one command when they operate on the same subsystem.
 
 ## Implementation Highlights
 
+### New Command Class
+- **`DriveAndTurnCommand`** (commands/DriveAndTurnCommand.java)
+  - Single command controlling both drive and steering motors
+  - Constructor parameters:
+    - `driveRotations`: Distance to travel
+    - `driveSpeed`: Drive motor speed (0.0 to 1.0)
+    - `steerRotations`: Steering angle change (positive = clockwise)
+  - `initialize()`: Records start positions, calculates steering target
+  - `execute()`: Simultaneously controls both motors:
+    - `drive(speed)` - constant speed control
+    - `setSteeringPosition(target)` - PID position control
+  - `isFinished()`: Returns true when drive distance reached
+  - `end()`: Stops drive motor, leaves steering at final position
+
 ### Key Classes Modified
 - **`GoToGoalCommand`** (commands/GoToGoalCommand.java)
-  - Added import for `ParallelDeadlineGroup`
-  - Reduced from 5 sequential steps to 3 parallel segments
-  - Each segment runs drive and turn commands simultaneously
-  - Drive command acts as "deadline" - determines when segment ends
+  - Removed `ParallelDeadlineGroup` import
+  - Changed from parallel groups to sequential `DriveAndTurnCommand` instances
+  - Each segment now uses single combined command
+  - Simpler, cleaner structure
 
-### Command Structure Comparison
+### Command Structure
 
-**Stage 06 (Sequential):**
-```
-5 steps total:
-Drive → Turn → Drive → Turn → Drive
-(stop between each action)
-```
-
-**Stage 07 (Parallel):**
-```
-3 segments total:
-[Drive + Turn] → [Drive + Turn] → [Drive + Turn]
-(smooth continuous motion)
-```
-
-### Parallel Deadline Group Pattern
+**Final Implementation (Sequential Combined Commands):**
 ```java
-new ParallelDeadlineGroup(
-  new DriveDistanceCommand(swerveModule, 20, 0.1),  // Deadline command
-  new RotateToAngleCommand(swerveModule, 0.25)       // Interrupted when deadline finishes
-)
+addCommands(
+  new DriveAndTurnCommand(swerveModule, 20, 0.1, 0.25),   // Arc right
+  new DriveAndTurnCommand(swerveModule, 20, 0.1, -0.25),  // Arc left
+  new DriveAndTurnCommand(swerveModule, 20, 0.1, 0.25)    // Arc right
+);
 ```
-
-- **Deadline command**: `DriveDistanceCommand` - runs until 20 rotations
-- **Secondary command**: `RotateToAngleCommand` - may not complete full 90°
-- **Behavior**: When drive finishes, turn is interrupted immediately
-- **Result**: Creates arc motion with varying curvature
 
 ## Motion Pattern Analysis
 
-### Stage 06 Path (Sequential)
+### Stage 06 Path (Sequential - Stop Between Actions)
 ```
 Start →→→→→→→→→→→ (straight)
                   └─┐ (stop, rotate in place)
@@ -59,7 +55,7 @@ Start →→→→→→→→→→→ (straight)
 - Sharp corners, stop between actions
 - Predictable but mechanical motion
 
-### Stage 07 Path (Parallel S-Curve)
+### Stage 07 Path (Combined Control - Simultaneous)
 ```
 Start ~~~~~~~~> (smooth curve right)
        ~~~~~~~~> (smooth curve left)
@@ -67,44 +63,74 @@ Start ~~~~~~~~> (smooth curve right)
 ```
 - Flowing S-pattern, no stops
 - More natural, efficient motion
-- Actual path depends on relative speeds
+- Both motors controlled in same command
 
 ### Curvature Characteristics
 - **First segment**: Curves clockwise while moving forward
 - **Second segment**: Curves counterclockwise (reverses curvature) → creates S-shape
 - **Third segment**: Curves clockwise again
-- **Arc radius**: Determined by ratio of drive speed to turn rate
+- **Arc radius**: Determined by ratio of drive speed to steering rotation rate
 
-## Parallel Command Group Types
+## WPILib Subsystem Requirements Rule
 
-### ParallelDeadlineGroup (Used Here)
-- **Deadline**: One command determines when group ends
-- **Others**: Interrupted when deadline finishes
-- **Use case**: "Drive while doing X, stop everything when drive completes"
+### The Fundamental Constraint
+**Rule**: Multiple commands in a parallel group cannot require the same subsystem.
 
-### Alternative Group Types
-
-**ParallelCommandGroup:**
+**Why This Error Occurred:**
 ```java
-new ParallelCommandGroup(
+// Both commands require m_swerveModule
+new ParallelDeadlineGroup(
+  new DriveDistanceCommand(swerveModule, ...),  // addRequirements(swerveModule)
+  new RotateToAngleCommand(swerveModule, ...)   // addRequirements(swerveModule)
+)
+// ERROR: java.lang.IllegalArgumentException
+```
+
+**WPILib's Reasoning:**
+- Subsystems enforce mutual exclusion
+- Only one command can "own" a subsystem at a time
+- Prevents conflicting control of the same hardware
+- Scheduler cannot resolve which command should control subsystem
+
+### Solution Patterns
+
+**Pattern 1: Combine into Single Command (Used Here)**
+```java
+// One command controls both motors
+public class DriveAndTurnCommand extends Command {
+  public void execute() {
+    m_swerveModule.drive(speed);           // Drive motor
+    m_swerveModule.setSteeringPosition(angle);  // Steer motor
+  }
+}
+```
+✅ Single subsystem requirement
+✅ Full control over both motors
+✅ Clean execution logic
+
+**Pattern 2: Split Subsystems (Alternative)**
+```java
+// Separate subsystems for drive and steer
+new ParallelDeadlineGroup(
+  new DriveDistanceCommand(driveSubsystem, ...),
+  new RotateToAngleCommand(steerSubsystem, ...)
+)
+```
+✅ Different subsystems can run in parallel
+⚠️ Requires architectural change
+⚠️ More complex subsystem structure
+
+**Pattern 3: Sequential Execution (Stage 06)**
+```java
+// Commands run one after another
+new SequentialCommandGroup(
   new DriveDistanceCommand(...),
   new RotateToAngleCommand(...)
 )
 ```
-- Runs until ALL commands finish
-- Both must complete their full targets
-- Use case: "Wait for both drive AND turn to complete"
-
-**ParallelRaceGroup:**
-```java
-new ParallelRaceGroup(
-  new DriveDistanceCommand(...),
-  new RotateToAngleCommand(...)
-)
-```
-- Runs until ANY command finishes
-- First to complete ends the group
-- Use case: "Drive OR turn, whichever happens first"
+✅ No subsystem conflicts
+❌ No simultaneous motion
+❌ Less efficient
 
 ## Testing / Verification
 
@@ -119,56 +145,100 @@ Build successful - no compilation errors.
 2. Enable autonomous mode
 3. **Ensure large open space** - path will be curved
 4. Observe smooth S-curve motion
-5. Compare to Stage 06 behavior (if recorded)
+5. Both motors working simultaneously throughout each segment
 
 ### Expected Behaviors
 - **Autonomous start**: Immediately begins driving AND turning
 - **Motion quality**: Smooth, continuous - no stops between segments
 - **Path shape**: S-curve pattern (right-left-right curvature)
 - **Completion**: Stops after third segment finishes
-- **No pauses**: Transitions between segments are seamless
+- **Transitions**: Brief pause between segments as commands change
 
 ### Observation Points
-- **SmartDashboard "Swerve/Angle"**: Continuously changing during entire routine
-- **Drive position**: Steadily increasing (no stops)
-- **Actual path**: May differ from ideal due to turn not completing full 90°
+- **SmartDashboard "Swerve/Angle"**: Continuously changing during each segment
+- **Drive position**: Steadily increasing (no stops within segments)
+- **Steering motion**: Smooth rotation to each target angle
+- **Final position**: Robot ends at different location and heading than start
 
-### Potential Variations
-- If turn completes before drive (unlikely with current parameters), turn will hold final position
-- If drive completes before turn reaches target, turn is interrupted mid-rotation
-- Final heading depends on actual rotation achieved during drive
+### Error Resolution
+**Initial Error:**
+```
+java.lang.IllegalArgumentException: Multiple commands in a parallel group 
+cannot require the same subsystems
+```
+
+**Fix:** Created `DriveAndTurnCommand` to combine both motor controls in a single command instead of using `ParallelDeadlineGroup` with separate commands.
 
 ## Architectural Patterns
 
-### Subsystem Sharing in Parallel Groups
-Both commands require `m_swerveModule`, but they control different motors:
-- `DriveDistanceCommand`: Controls drive motor
-- `RotateToAngleCommand`: Controls steering motor
-- **Legal in parallel**: Different motors, same subsystem
-- Commands must be designed to not conflict
+### Single Command Controlling Multiple Motors
+The key insight: When multiple motors need to work together on the same subsystem, combine their control in one command's `execute()` method:
 
-### Deadline Command Selection
-Choose deadline based on desired behavior:
-- **Drive as deadline** (current): Ensures specific distance traveled
-- **Turn as deadline**: Would ensure specific angle reached
-- **Time as deadline**: `WaitCommand` for duration-based segments
+```java
+@Override
+public void execute() {
+  // Control both motors simultaneously
+  m_swerveModule.drive(m_driveSpeed);              // Motor 1
+  m_swerveModule.setSteeringPosition(m_targetSteerPosition);  // Motor 2
+}
+```
+
+**Benefits:**
+- ✅ Single subsystem requirement (no conflicts)
+- ✅ Synchronized control (both motors in same cycle)
+- ✅ Shared state (can coordinate based on both motor states)
+- ✅ Clean lifecycle (initialize/end handle both motors together)
+
+### Why Parallel Groups Don't Work Here
+Parallel command groups are designed for **independent subsystems**:
+- ✅ Good: Drive subsystem + Intake subsystem
+- ✅ Good: Shooter subsystem + Vision subsystem
+- ❌ Bad: Same subsystem, different motors (use combined command)
+
+### When to Use Each Pattern
+
+**Combined Command (`DriveAndTurnCommand`):**
+- Motors are part of same subsystem
+- Need tight coordination between motors
+- Motors work toward single unified goal
+- Example: Swerve module (drive + steer)
+
+**Parallel Command Groups:**
+- Separate, independent subsystems
+- Concurrent but uncoordinated actions
+- Example: Drive while running intake
+
+**Sequential Command Groups:**
+- One action must complete before next begins
+- Example: Drive to position, then shoot
 
 ## Next Steps / Extensions
 
 ### Motion Refinement
-- Tune drive/turn speeds for desired curve radius
+- Tune drive/turn parameters for desired curve radius
 - Add velocity ramping for smoother acceleration
 - Implement closed-loop curve following (feedback control)
-- Calculate arc radius: `radius = drive_velocity / angular_velocity`
+- Calculate arc radius: `radius = drive_distance / steering_angle`
 
-### Advanced Parallel Patterns
+### More Complex Combined Commands
 ```java
-// Drive while running intake and vision tracking
+// Drive while tracking a target with vision
+public class DriveToTargetCommand extends Command {
+  public void execute() {
+    m_swerveModule.drive(0.3);                    // Forward motion
+    double angle = m_vision.getTargetAngle();     // Get target bearing
+    m_swerveModule.setSteeringPosition(angle);    // Auto-aim while driving
+  }
+}
+```
+
+### Multi-Subsystem Parallel Operations
+```java
+// Now that we know the rules, we can do this:
 new ParallelDeadlineGroup(
-  new DriveDistanceCommand(...),    // Deadline
-  new RotateToAngleCommand(...),    // Curve motion
-  new RunIntakeCommand(...),        // Continuous intake
-  new TrackTargetCommand(...)       // Vision alignment
+  new DriveAndTurnCommand(swerveModule, ...),  // One subsystem
+  new RunIntakeCommand(intakeSubsystem, ...),  // Different subsystem - OK!
+  new TrackTargetCommand(visionSubsystem, ...) // Different subsystem - OK!
 )
 ```
 
@@ -198,47 +268,52 @@ new SequentialCommandGroup(
 
 ## Notes
 
-### Interrupted Command Behavior
-When deadline finishes:
-- `RotateToAngleCommand.end(true)` is called with `interrupted = true`
-- Steering motor state depends on `end()` implementation
-- Current `RotateToAngleCommand` doesn't actively stop in `end()` - position holds via PID
+### Key Learning: Subsystem Requirements
+The most important lesson from this stage:
+- **Problem**: Initially tried `ParallelDeadlineGroup` with separate drive and turn commands
+- **Error**: "Multiple commands in a parallel group cannot require the same subsystems"
+- **Solution**: Combine motor control into single command when operating on same subsystem
+- **Pattern**: Use parallel groups for **different subsystems**, combined commands for **same subsystem**
 
-### Subsystem Command Requirements
-WPILib enforces:
-- Commands must declare subsystem requirements
-- Parallel commands can share subsystem if they don't conflict
-- Drive and steer motors are independent - safe to run simultaneously
-- Framework doesn't know about motor-level conflicts - programmer responsibility
+### Command Execution Model
+```java
+public void execute() {
+  m_swerveModule.drive(m_driveSpeed);
+  m_swerveModule.setSteeringPosition(m_targetSteerPosition);
+}
+```
+Both method calls happen in the same scheduler cycle (~20ms intervals), providing effectively simultaneous control.
+
+### Why This Works
+- `drive()` controls drive motor (open-loop speed)
+- `setSteeringPosition()` controls steering motor (closed-loop position)
+- Different motors can be controlled independently
+- Same subsystem requirement prevents scheduler conflicts
+- No actual hardware conflict since motors are separate
 
 ### Real Swerve Drive Considerations
 In full swerve drive (4 modules):
-- Each module can drive and steer independently
-- Parallel operation is fundamental to swerve capability
+- Each module subsystem combines drive + steer control
+- Four separate module subsystems can run in parallel (different subsystems)
 - Requires inverse kinematics to coordinate all 4 modules
-- This single-module demo shows the principle at smaller scale
+- This single-module demo demonstrates the per-module control pattern
 
-### Motion Predictability Trade-offs
+### Motion Predictability
+
 **Sequential (Stage 06):**
 - ✅ Predictable final position and heading
 - ✅ Easy to verify each step
 - ❌ Slower (stops between actions)
 - ❌ Less natural motion
 
-**Parallel (Stage 07):**
+**Combined Control (Stage 07):**
 - ✅ Faster, more efficient
 - ✅ Smoother, more natural
-- ⚠️ Final heading depends on execution timing
-- ⚠️ Harder to predict exact path
+- ✅ Full control over both distance and angle
+- ✅ Predictable - both targets reached before command ends
 
-### Debugging Parallel Commands
-- Add logging to `initialize()` and `end()` of each command
-- Use `SmartDashboard.putBoolean("CommandName/isRunning", true)` in `execute()`
-- Consider `PrintCommand` between groups for sequencing visibility
-- Test individual commands before combining
-
-### Performance Considerations
-- Parallel execution doesn't increase CPU load significantly
-- Commands still run sequentially in scheduler, just multiple per cycle
-- Actual parallelism is at hardware level (different motors)
-- Command overhead is minimal compared to motor control
+### Debugging Combined Commands
+- Add separate SmartDashboard outputs for drive and steer targets
+- Log both motor states in `execute()` to verify simultaneous control
+- Test drive-only and steer-only first before combining
+- Use `PrintCommand` to log segment transitions
