@@ -5,8 +5,8 @@
 package frc.robot;
 
 import frc.robot.Constants.OperatorConstants;
-import frc.robot.commands.DriveDistanceCommand;
 import frc.robot.commands.ExampleCommand;
+import frc.robot.commands.GoToGoalCommand;
 import frc.robot.commands.RotateSteeringCommand;
 import frc.robot.commands.RotateToAngleCommand;
 import frc.robot.commands.SpinWheelCommand;
@@ -38,13 +38,13 @@ public class RobotContainer {
 
   /**
    * Give back the command that runs during the autonomous period.
-   * Drives the robot forward 30 rotations at 20% speed.
+   * Executes a complex navigation routine with driving and turning.
    *
    * @return the command to run in autonomous
    */
   public Command getAutonomousCommand() {
-    // Drive forward 30 rotations at 20% speed
-    return new DriveDistanceCommand(m_swerveModule, 30, 0.2);
+    // Execute goal-seeking autonomous routine
+    return new GoToGoalCommand(m_swerveModule);
   }
 
   /**
