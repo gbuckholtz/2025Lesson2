@@ -58,4 +58,11 @@ public class SwerveModule extends SubsystemBase {
   public double getRotations(){
     return steerMotor.getPosition().getValue().in(Rotation);
   }
+
+  /**
+   * Get the current position of the drive motor in rotations.
+   */
+  public double getDrivePosition() {
+    return driveMotor.getPosition().getValue().in(Rotation);
+  }
 }
