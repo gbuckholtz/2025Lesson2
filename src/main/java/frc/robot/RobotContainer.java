@@ -8,6 +8,7 @@ import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.Autos;
 import frc.robot.commands.ExampleCommand;
 import frc.robot.commands.RotateSteeringCommand;
+import frc.robot.commands.RotateToAngleCommand;
 import frc.robot.commands.SpinWheelCommand;
 import frc.robot.subsystems.ExampleSubsystem;
 import frc.robot.subsystems.SwerveModule;
@@ -64,5 +65,8 @@ public class RobotContainer {
 
     // While Y button is held, rotate the steering wheel at slow speed.
     m_driverController.y().whileTrue(new RotateSteeringCommand(m_swerveModule));
+
+    // When B button is pressed, rotate the steering wheel 90 degrees (0.25 rotations).
+    m_driverController.b().onTrue(new RotateToAngleCommand(m_swerveModule, 0.25));
   }
 }

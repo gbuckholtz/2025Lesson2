@@ -7,6 +7,7 @@ package frc.robot.subsystems;
 import static edu.wpi.first.units.Units.Rotation;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -20,6 +21,8 @@ public class SwerveModule extends SubsystemBase {
   
   TalonFX driveMotor = new TalonFX(7);
   TalonFX steerMotor = new TalonFX(8);
+  
+  private final PositionVoltage positionRequest = new PositionVoltage(0);
 
   /** Set up the motors and their sensors. */
   public SwerveModule() {
@@ -46,6 +49,13 @@ public class SwerveModule extends SubsystemBase {
    */
   public void steer(double speed) {
     steerMotor.set(speed);
+  }
+
+  /**
+   * Set the steering motor to a target position in rotations using closed-loop control.
+   */
+  public void setSteeringPosition(double rotations) {
+    steerMotor.setControl(positionRequest.withPosition(rotations));
   }
 
   /**
